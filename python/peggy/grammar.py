@@ -4,7 +4,7 @@
 # Implements PEG grammar in PEG,
 # as described at http://pdos.csail.mit.edu/papers/parsing:popl04.pdf
 
-from peggy import *
+from peg import *
 
 
 EndOfFile = ~Dot()
