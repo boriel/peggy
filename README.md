@@ -1,4 +1,4 @@
 peggy
 =====
 
-A PEG parser and parser generato written in Python
+A PEG parser and parser generator written in Python
