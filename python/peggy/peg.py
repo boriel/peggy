@@ -77,6 +77,14 @@ class YYtext(object):
         return YYtext(self.symbol, self.pos, str(self), name = self.name)
 
 
+class YYignore(YYtext):
+    ''' As above, but returns '' for str method.
+    Useful for discarding matches.
+    '''
+    def __str__(self):
+        return ''
+
+
 class Symbol(object): 
     ''' Empty / Epsilon symbol
     '''
@@ -363,10 +371,11 @@ class Ignore(Symbol):
         self.symbol = Symbol.symbol(x)
 
     def parse(self, inputSequence, pos):
-        if self.symbol.parse(inputSequence, pos) is None:
-            return None
+        result = self.symbol.parse(inputSequence, pos)
+        if result is not None:
+            result = YYignore(self, pos, str(result), name = self.__class__.__name__)
 
-        return YYtext(self, pos, '', name = self.__class__.__name__)
+        return result
 
 
 
