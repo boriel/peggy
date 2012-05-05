@@ -6,8 +6,8 @@ import re
 
 from stream import Stream
 
-class Undefined:
-    pass
+# Constant for getting "Undefined" values
+Undefined = object()
 
 
 class Memo(object):
@@ -50,10 +50,12 @@ class YYtext(object):
     ''' This class stores a recognized yytext,
     and a position where it was recognized in the input.
     '''
-    def __init__(self, pos, text):
+    def __init__(self, symbol, pos, text, name = None):
+        self.symbol = symbol # Symbol Instance which create this module
         self.yytext = text
         self.pos = pos
         self.child = []
+        self.name = name
 
     def __str__(self):
         return self.yytext + ''.join(str(x) for x in self.child)
@@ -65,12 +67,17 @@ class YYtext(object):
         if self.pos + len(self) != other.pos:
             return Undefined
 
-        result = YYtext(self.pos, self.yytext)
+        result = YYtext(self.symbol, self.pos, self.yytext, name = self.name)
         result.child = self.child + [other]
         return result
 
+    def flatten(self):
+        ''' Returns an copy of this object, flattened.
+        '''
+        return YYtext(self.symbol, self.pos, str(self), name = self.name)
 
-class Symbol(object):
+
+class Symbol(object): 
     ''' Empty / Epsilon symbol
     '''
     instr = False
@@ -80,7 +87,7 @@ class Symbol(object):
         self.symbol = None
     
     def parse(self, inputSequence, pos):
-        return YYtext(pos, '') if self.symbol is None else self.symbol.parse(inputSequence, pos)
+        return YYtext(self, pos, '', name = name) if self.symbol is None else self.symbol.parse(inputSequence, pos)
 
     def match(self, inputSequence, pos = None):
         ''' Tries first to get the memoized value in the table entry.
@@ -169,7 +176,7 @@ class String(Symbol):
         if inputSequence[pos:pos + self.length] != self.pattern:
             return None
 
-        return YYtext(pos, self.pattern)
+        return YYtext(self, pos, self.pattern, self.__class__.__name__)
 
     def __str__(self):
         return self.toStr()
@@ -191,8 +198,7 @@ class Regexp(Symbol):
         '''
         match = self.symbol.match(inputSequence[pos:])
         if match is not None:
-            return YYtext(pos, match.group())
-
+            return YYtext(self, pos, match.group(), name = self.__class__.__name__)
 
     def toStr(self):
         return '/' + self.pattern + '/'
@@ -212,7 +218,7 @@ class Sequence(Symbol):
         given sequence from the input, at the given position.
         Returns None otherwise.
         '''
-        result = YYtext(pos, '')
+        result = YYtext(self, pos, '', name = self.__class__.__name__)
         for symbol in self.symbol: 
             tmp = symbol.match(inputSequence, pos + len(result))
             if tmp is None:
@@ -237,7 +243,7 @@ class Star(Symbol):
         ''' Returns ALWAYS an YYtext Symbol, which matches greedely
         as much input as possible.
         '''
-        result = YYtext(pos, '')
+        result = YYtext(self, pos, '', name = self.__class__.__name__)
 
         tmp = self.symbol.match(inputSequence, pos)
         while tmp is not None and len(tmp):
@@ -305,7 +311,7 @@ class And(Symbol):
 
     def parse(self, inputSequence, pos):
         tmp = self.symbol.match(inputSequence, pos)
-        return None if tmp is None else YYtext(pos, '')
+        return None if tmp is None else YYtext(self, pos, '', name = self.__class__.__name__)
 
     def toStr(self):
         return '&' + str(self.symbol)
@@ -320,7 +326,7 @@ class Not(Symbol):
 
     def parse(self, inputSequence, pos):
         tmp = self.symbol.match(inputSequence, pos)
-        return None if tmp is not None else YYtext(pos, '')
+        return None if tmp is not None else YYtext(self, pos, '', name = self.__class__.__name__)
 
     def toStr(self):
         return '!' + str(self.symbol)
@@ -333,7 +339,7 @@ class Dot(Symbol):
         if pos == len(inputSequence):
             return None
 
-        return YYtext(pos, inputSequence[pos])
+        return YYtext(self, pos, inputSequence[pos], name = self.__class__.__name__)
 
     def toStr(self):
         return '.'
@@ -347,6 +353,20 @@ class Range(Regexp):
         if b is None:
             b = a
         Regexp.__init__(self, '[' + a + '-' + b + ']')
+
+
+class Ignore(Symbol):
+    ''' Matches the given input, and ignores it.
+    Useful for Spaces, delimiters, separators, comments, etc.
+    '''
+    def __init__(self, x):
+        self.symbol = Symbol.symbol(x)
+
+    def parse(self, inputSequence, pos):
+        if self.symbol.parse(inputSequence, pos) is None:
+            return None
+
+        return YYtext(self, pos, '', name = self.__class__.__name__)
 
 
 

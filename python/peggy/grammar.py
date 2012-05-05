@@ -11,7 +11,7 @@ EndOfFile = ~Dot()
 EndOfLine = String('\r\n') | '\n' | '\r'
 Space = EndOfLine | ' ' | '\t'
 Comment = Sequence(String('#'), Sequence(~EndOfLine, Dot())* EndOfLine)
-Spacing = Star(Space | Comment)
+Spacing = Ignore(Star(Space | Comment))
 DOT = Sequence('.', Spacing)
 CLOSE = Sequence(')', Spacing)
 OPEN = Sequence('(', Spacing)
@@ -47,4 +47,4 @@ Expression.symbol = [Sequence_, Star(Sequence(SLASH, Sequence_))]
 Definition = Sequence(Identifier, LEFTARROW, Expression)
 Grammar = Sequence(Spacing, Definition+ EndOfFile)
 
-
+print "%s<<" % Spacing.match('   ')

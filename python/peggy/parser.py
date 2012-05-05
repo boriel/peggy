@@ -1,8 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import sys
+import inspect
+
 from peg import *
-from grammar import Grammar
+import grammar
+
+
+Definition = grammar.Spacing* grammar.Definition
 
 
 class PEGerror(Exception):
@@ -14,7 +20,7 @@ class PEGerror(Exception):
 
 
 
-class Rule(object):
+class PEGrule(object):
     ''' A decorator class used to decorate action functions.
     (see examples)
     '''
@@ -23,30 +29,51 @@ class Rule(object):
         if self.rule is None:
             self.rule = ''
 
-        self.peg = Grammar.match(self.rule)
+        self.peg = Definition.match(self.rule)
         if self.peg is None:
-            raise PEGerror('Invalid rule syntax at function ' + action.func_name)
+            raise PEGerror('Invalid rule syntax in function ' + action.func_name)
 
         self.action = action
 
     def __call__(self, *args, **kwargs):
         return self.action(*args, **kwargs)
 
+    @property
+    def symbolName(self):
+        ''' Returns left part of the rule.
+        '''
+        return str(self.peg.child[1].child[0])
+
+    @property
+    def definition(self):
+        ''' Returns right part of the rule.
+        '''
+        return self.peg.child[1].child[2]
 
 
-
-@Rule
-def a(a, b, c):
-    ''' Pera <- [0-9]+
-    '''
-    pass
-
-
-a(1, 2, 3)
 
 
 class Parser(object):
     ''' A PEG parser generator
     '''
-    pass
+    def __init__(self):
+        caller = inspect.currentframe().f_back
+        symbols = {} # Left-rule symbols (a dict of lists)
+
+        rules = [x[1] for x in
+            inspect.getmembers(sys.modules[caller.f_globals['__name__']])
+            if isinstance(x[1], PEGrule)]
+
+        if not rules:
+            raise PEGerror('No rules defined.')
+
+        start = rules[0].symbolName # First symbol will be the start one
+
+        for obj in rules:
+            symbols[obj.symbolName] = []
+
+        print symbols
+
+        
+
 
