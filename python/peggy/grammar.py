@@ -108,8 +108,6 @@ Range_.action = Range__action
 
 
 def Class_action(yytext):
-    ''' Action for Class object
-    '''
     tmp = [x.child[1]() for x in yytext.child[1].child[0].child]
     if len(tmp) == 1:
         return tmp[0]
@@ -119,12 +117,14 @@ Class.action = Class_action
 
 
 def Prefix_action(yytext):
-    ''' Action for Prefix object
-    '''
-    print yytext.child[0]
-    print yytext.child[0].child[0]
+    return str(yytext)
 Prefix.action = Prefix_action 
 
+
+def Expression_action(yytext):
+    return [x() for x in yytext.child]
+Expression.action = Expression_action
+    
 
 
 def Primary_action(yytext):
@@ -147,23 +147,44 @@ def Primary_action(yytext):
 Primary.action = Primary_action
 
 
-q = Primary.match(".")
-print q()
-print type(q())
+def Suffix_action(yytext):
+    result = yytext.child[0]()
+    if yytext.child[1]() == '&':
+        result = And(result)
+    elif yytext.child[1]() == '!':
+        result = Not(Result)
+    elif yytext.child[1]() == '?':
+        result = Optional(result)
+    return result
+Suffix.action = Suffix_action
 
-q = Primary.match('[a-z]')
-print q()
-print type(q())
 
-q = Primary.match('"Literal"')
-print q()
-print type(q())
-
-q = Primary.match('(Smart)')
-print q()
-print type(q())
-
-q = Primary.match('Smart')
-print q()
-print type(q())
+if __name__ == '__main__':
+    q = Primary.match(".")
+    print q()
+    print type(q())
     
+    q = Primary.match('[a-z]')
+    print q()
+    print type(q())
+    
+    q = Primary.match('"Literal"')
+    print q()
+    print type(q())
+    
+    q = Primary.match('(Smart)')
+    print q()
+    print type(q())
+    
+    q = Primary.match('Smart')
+    print q()
+    print type(q())
+
+    q = Primary.match('([a-z])')
+    print q()
+    print type(q())
+
+    q = Suffix.match('[a-x]?')
+    print q()
+    print type(q())
+        

@@ -333,7 +333,7 @@ class Optional(Symbol):
         return self.symbol.match(inputSequence, pos)
 
     def toStr(self):
-        return str(self.symbol) + '?'
+        return str(self.symbol.symbol[0]) + '?'
 
 
 
