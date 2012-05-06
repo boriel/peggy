@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+    #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import os
@@ -55,7 +55,7 @@ class YYtext(object):
         self.yytext = text
         self.pos = pos
         self.child = []
-        self.name = name
+        self.name = name if name is not None else symbol.__class__.name
 
     def __str__(self):
         return self.yytext + ''.join(str(x) for x in self.child)
@@ -76,11 +76,25 @@ class YYtext(object):
         '''
         return YYtext(self.symbol, self.pos, str(self), name = self.name)
 
+    def __call__(self):
+        ''' Returns the this YYtext evaluated through a rule action
+        defined in the PEG object. If not defined, the default is the
+        string representation of the matched input.
+        '''
+        if self.symbol.action is None:
+            return str(self)
+
+        return self.symbol.action(self)
+
 
 class YYignore(YYtext):
     ''' As above, but returns '' for str method.
     Useful for discarding matches.
     '''
+    def __init__(self, symbol, pos, text, ignored, name = None):
+        YYtext.__init__(self, symbol, pos, text, name)
+        self.ignored = ignored 
+
     def __str__(self):
         return ''
 
@@ -89,7 +103,18 @@ class Symbol(object):
     ''' Empty / Epsilon symbol
     '''
     instr = False
-    name = None
+    __name = None
+    action = None
+
+    def __get_name(self):
+        if self.__name is None:
+            return self.__class__.__name__
+        return self.__name
+
+    def __set_name(self, value):
+        self.__name = value
+
+    name = property(__get_name, __set_name)
 
     def __init__(self):
         self.symbol = None
@@ -118,7 +143,7 @@ class Symbol(object):
         of the object avoiding reentrance.
         '''
         if self.instr:
-            return self.name or self.__class__.__name__
+            return self.name
 
         self.instr = True
         result = '' if self.symbol is None else self.toStr()
@@ -184,7 +209,7 @@ class String(Symbol):
         if inputSequence[pos:pos + self.length] != self.pattern:
             return None
 
-        return YYtext(self, pos, self.pattern, self.__class__.__name__)
+        return YYtext(self, pos, self.pattern, self.name)
 
     def __str__(self):
         return self.toStr()
@@ -206,7 +231,7 @@ class Regexp(Symbol):
         '''
         match = self.symbol.match(inputSequence[pos:])
         if match is not None:
-            return YYtext(self, pos, match.group(), name = self.__class__.__name__)
+            return YYtext(self, pos, match.group(), name = self.name)
 
     def toStr(self):
         return '/' + self.pattern + '/'
@@ -226,7 +251,7 @@ class Sequence(Symbol):
         given sequence from the input, at the given position.
         Returns None otherwise.
         '''
-        result = YYtext(self, pos, '', name = self.__class__.__name__)
+        result = YYtext(self, pos, '', name = self.name)
         for symbol in self.symbol: 
             tmp = symbol.match(inputSequence, pos + len(result))
             if tmp is None:
@@ -251,8 +276,7 @@ class Star(Symbol):
         ''' Returns ALWAYS an YYtext Symbol, which matches greedely
         as much input as possible.
         '''
-        result = YYtext(self, pos, '', name = self.__class__.__name__)
-
+        result = YYtext(self, pos, '')
         tmp = self.symbol.match(inputSequence, pos)
         while tmp is not None and len(tmp):
             result += tmp
@@ -289,7 +313,9 @@ class Choice(Sequence):
             tmp = symbol.match(inputSequence, pos)
             if tmp is not None:
                 break
-
+        
+        if tmp is not None:
+            tmp = YYtext(self, pos, '') + tmp
         return tmp
 
     def toStr(self):
@@ -319,7 +345,7 @@ class And(Symbol):
 
     def parse(self, inputSequence, pos):
         tmp = self.symbol.match(inputSequence, pos)
-        return None if tmp is None else YYtext(self, pos, '', name = self.__class__.__name__)
+        return None if tmp is None else YYtext(self, pos, '', name = self.name)
 
     def toStr(self):
         return '&' + str(self.symbol)
@@ -334,7 +360,7 @@ class Not(Symbol):
 
     def parse(self, inputSequence, pos):
         tmp = self.symbol.match(inputSequence, pos)
-        return None if tmp is not None else YYtext(self, pos, '', name = self.__class__.__name__)
+        return None if tmp is not None else YYtext(self, pos, '', name = self.name)
 
     def toStr(self):
         return '!' + str(self.symbol)
@@ -347,7 +373,7 @@ class Dot(Symbol):
         if pos == len(inputSequence):
             return None
 
-        return YYtext(self, pos, inputSequence[pos], name = self.__class__.__name__)
+        return YYtext(self, pos, inputSequence[pos], name = self.name)
 
     def toStr(self):
         return '.'
@@ -360,6 +386,8 @@ class Range(Regexp):
     def __init__(self, a, b = None):
         if b is None:
             b = a
+        self.a = a
+        self.b = b
         Regexp.__init__(self, '[' + a + '-' + b + ']')
 
 
@@ -373,9 +401,12 @@ class Ignore(Symbol):
     def parse(self, inputSequence, pos):
         result = self.symbol.parse(inputSequence, pos)
         if result is not None:
-            result = YYignore(self, pos, str(result), name = self.__class__.__name__)
+            result = YYignore(self, pos, str(result), result, name = self.name)
 
         return result
+
+    def toStr(self):
+        return ''
 
 
 

@@ -42,9 +42,70 @@ Primary = Sequence(Identifier, ~LEFTARROW) | (OPEN, Expression, CLOSE) | Literal
 Suffix = Sequence(Primary, Optional(QUESTION | STAR | PLUS))
 Prefix = Sequence(Optional(AND | NOT), Suffix)
 Sequence_ = Star(Prefix)
-Expression.name = 'Expression'
+#Expression.name = 'Expression'
 Expression.symbol = [Sequence_, Star(Sequence(SLASH, Sequence_))]
 Definition = Sequence(Identifier, LEFTARROW, Expression)
 Grammar = Sequence(Spacing, Definition+ EndOfFile)
 
-print "%s<<" % Spacing.match('   ')
+
+
+def Char_action(yytext):
+    ''' Action for Char object
+    '''
+    yy = str(yytext)
+    if yy == '\\t': 
+        yy = '\t'
+    elif yy == '\\r':
+        yy = '\r'
+    elif yy == '\\n':
+        yy = '\n'
+    elif yy == '\\\\':
+        yy = '\\'
+    elif yy[0] == '\\' and yy[1] >= '0' and yy[1] <= '7':
+        yy = chr(int(yy[1:], 8))
+    
+    return yy
+Char.action = Char_action
+
+
+def Sequence__action(yytext):
+    ''' Action for Sequence object
+    '''
+    return [x() for x in yytext.child]
+Sequence_.action = Sequence__action
+
+
+
+def Range__action(yytext):
+    ''' Action for Range_ object
+    '''
+    print yytext.symbol.name
+    yy = str(yytext)
+
+    if len(yy) == 1:
+        return String(yy)
+
+    return Range(yy[0], yy[2])
+Range_.action = Range__action
+    
+
+
+def Class_action(yytext):
+    ''' Action for Class object
+    '''
+    tmp = [x.child[1]() for x in yytext.child[1].child[0].child]
+    if len(tmp) == 1:
+        return tmp[0]
+    return Choice(*tuple(x for x in tmp))
+Class.action = Class_action
+    
+
+
+q = Range_.match('a-z')
+print q()
+print type(q())
+
+q = Class.match('[a-zA-Z]')
+print q()
+print type(q())
+
