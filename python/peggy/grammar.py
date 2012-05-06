@@ -13,6 +13,7 @@ Space = EndOfLine | ' ' | '\t'
 Comment = Sequence(String('#'), Sequence(~EndOfLine, Dot())* EndOfLine)
 Spacing = Ignore(Star(Space | Comment))
 DOT = Sequence('.', Spacing)
+DOT.name = 'DOT'
 CLOSE = Sequence(')', Spacing)
 OPEN = Sequence('(', Spacing)
 PLUS = Sequence('+', Spacing)
@@ -30,8 +31,10 @@ Char = Sequence('\\', String('n')|'r'|'t'|"'"|'"'|'['|']'|'\\') | \
 
 Range_ = Sequence(Char, '-', Char) | Char
 Class = Sequence('[', Sequence(Not(']'), Range_)* ']', Spacing)
+Class.name = 'Class'
 Literal = Sequence("'", Sequence(Not("'"), Char)* "'", Spacing) | \
     Sequence('"', Sequence(Not('"'), Char)* '"', Spacing) 
+Literal.name = 'Literal'
 
 IdentStart = Range('a', 'z') | Range('A', 'Z')
 IdentCont = IdentStart | Range('0', '9')
@@ -42,11 +45,25 @@ Primary = Sequence(Identifier, ~LEFTARROW) | (OPEN, Expression, CLOSE) | Literal
 Suffix = Sequence(Primary, Optional(QUESTION | STAR | PLUS))
 Prefix = Sequence(Optional(AND | NOT), Suffix)
 Sequence_ = Star(Prefix)
-#Expression.name = 'Expression'
+Expression.name = 'Expression'
 Expression.symbol = [Sequence_, Star(Sequence(SLASH, Sequence_))]
 Definition = Sequence(Identifier, LEFTARROW, Expression)
 Grammar = Sequence(Spacing, Definition+ EndOfFile)
 
+
+def Sequence__action(yytext):
+    return Sequence(x() for x in yytext.child)
+Sequence_.action = Sequence__action
+
+
+def Suffix_action(yytext):
+    pass
+Suffix.action = Suffix_action
+
+
+def DOT_action(yytext):
+    return Dot()
+DOT.action = DOT_action
 
 
 def Char_action(yytext):
@@ -98,14 +115,55 @@ def Class_action(yytext):
         return tmp[0]
     return Choice(*tuple(x for x in tmp))
 Class.action = Class_action
+
+
+
+def Prefix_action(yytext):
+    ''' Action for Prefix object
+    '''
+    print yytext.child[0]
+    print yytext.child[0].child[0]
+Prefix.action = Prefix_action 
+
+
+
+def Primary_action(yytext):
+    child = yytext.child[0]
+    if child.symbol.name == 'DOT':
+        return child()
+    child = child.child[0]
+    if child.symbol.name == 'Class':
+        return child()
+    child = child.child[0]
+    if child.symbol.name == 'Literal':
+        return String(child()[1:-1])
+    child = child.child[0]
+    if child.symbol.name == 'Sequence':
+        if child.child[1].symbol.name == 'Expression':
+            return child.child[1]()
+
+    child = child.child[0]
+    return child()
+Primary.action = Primary_action
+
+
+q = Primary.match(".")
+print q()
+print type(q())
+
+q = Primary.match('[a-z]')
+print q()
+print type(q())
+
+q = Primary.match('"Literal"')
+print q()
+print type(q())
+
+q = Primary.match('(Smart)')
+print q()
+print type(q())
+
+q = Primary.match('Smart')
+print q()
+print type(q())
     
-
-
-q = Range_.match('a-z')
-print q()
-print type(q())
-
-q = Class.match('[a-zA-Z]')
-print q()
-print type(q())
-

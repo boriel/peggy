@@ -251,7 +251,7 @@ class Sequence(Symbol):
         given sequence from the input, at the given position.
         Returns None otherwise.
         '''
-        result = YYtext(self, pos, '', name = self.name)
+        result = YYtext(self, pos, '')
         for symbol in self.symbol: 
             tmp = symbol.match(inputSequence, pos + len(result))
             if tmp is None:
@@ -376,6 +376,9 @@ class Dot(Symbol):
         return YYtext(self, pos, inputSequence[pos], name = self.name)
 
     def toStr(self):
+        return str(self)
+
+    def __str__(self):
         return '.'
 
 
