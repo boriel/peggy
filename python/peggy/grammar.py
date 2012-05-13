@@ -158,6 +158,10 @@ def Prefix_action(yytext):
 Prefix.action = Prefix_action 
 
 
+def Definition_action(yytext):
+    return [str(yytext.child[0]), yytext.child[2]()]
+Definition.action = Definition_action
+
 
 if __name__ == '__main__':
     q = Primary.match(".")
@@ -185,10 +189,15 @@ if __name__ == '__main__':
     print type(q())
 
     q = Prefix.match('![a-z]')
-    print q(), '+++++++++'
+    print q()
     print type(q())
 
     q = Expression.match('[a-z] ![a-z] &[a-z] | [a-z]+ [a-z]')
-    print q(), '<'
+    print q()
     print type(q())
+
+    q = Definition.match('number <- [0-9]+')
+    print q()
+    print type(q())
+
 
