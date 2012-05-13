@@ -56,11 +56,6 @@ def Sequence__action(yytext):
 Sequence_.action = Sequence__action
 
 
-def Suffix_action(yytext):
-    pass
-Suffix.action = Suffix_action
-
-
 def DOT_action(yytext):
     return Dot()
 DOT.action = DOT_action
@@ -88,7 +83,7 @@ Char.action = Char_action
 def Sequence__action(yytext):
     ''' Action for Sequence object
     '''
-    return [x() for x in yytext.child]
+    return Sequence(*tuple(x() for x in yytext.child))
 Sequence_.action = Sequence__action
 
 
@@ -96,7 +91,6 @@ Sequence_.action = Sequence__action
 def Range__action(yytext):
     ''' Action for Range_ object
     '''
-    print yytext.symbol.name
     yy = str(yytext)
 
     if len(yy) == 1:
@@ -106,7 +100,6 @@ def Range__action(yytext):
 Range_.action = Range__action
     
 
-
 def Class_action(yytext):
     tmp = [x.child[1]() for x in yytext.child[1].child[0].child]
     if len(tmp) == 1:
@@ -115,17 +108,13 @@ def Class_action(yytext):
 Class.action = Class_action
 
 
-
-def Prefix_action(yytext):
-    return str(yytext)
-Prefix.action = Prefix_action 
-
-
 def Expression_action(yytext):
-    return [x() for x in yytext.child]
+    result = yytext.child[0]()
+    for x in yytext.child[1].child:
+        result |= x.child[1]()
+    return result
 Expression.action = Expression_action
     
-
 
 def Primary_action(yytext):
     child = yytext.child[0]
@@ -139,7 +128,7 @@ def Primary_action(yytext):
         return String(child()[1:-1])
     child = child.child[0]
     if child.symbol.name == 'Sequence':
-        if child.child[1].symbol.name == 'Expression':
+        if child.child[1].symbol.name == 'Expression': # ( Expression ) => Return Expression
             return child.child[1]()
 
     child = child.child[0]
@@ -149,14 +138,25 @@ Primary.action = Primary_action
 
 def Suffix_action(yytext):
     result = yytext.child[0]()
-    if yytext.child[1]() == '&':
-        result = And(result)
-    elif yytext.child[1]() == '!':
-        result = Not(Result)
+    if yytext.child[1]() == '*':
+        result = Star(result)
+    elif yytext.child[1]() == '+':
+        result = Plus(result)
     elif yytext.child[1]() == '?':
         result = Optional(result)
     return result
 Suffix.action = Suffix_action
+
+
+def Prefix_action(yytext):
+    result = yytext.child[1]()
+    if str(yytext.child[0]) == '!':
+        result = Not(result)
+    elif str(yytext.child[0]) == '&':
+        result = And(result)
+    return result
+Prefix.action = Prefix_action 
+
 
 
 if __name__ == '__main__':
@@ -180,11 +180,15 @@ if __name__ == '__main__':
     print q()
     print type(q())
 
-    q = Primary.match('([a-z])')
-    print q()
-    print type(q())
-
     q = Suffix.match('[a-x]?')
     print q()
     print type(q())
-        
+
+    q = Prefix.match('![a-z]')
+    print q(), '+++++++++'
+    print type(q())
+
+    q = Expression.match('[a-z] ![a-z] &[a-z] | [a-z]+ [a-z]')
+    print q(), '<'
+    print type(q())
+
