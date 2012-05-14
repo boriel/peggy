@@ -9,6 +9,9 @@ import grammar
 
 
 Definition = grammar.Spacing* grammar.Definition
+def Definition_action(yytext):
+    return yytext.child[-1]()
+Definition.action = Definition_action
 
 
 class PEGerror(Exception):
@@ -33,7 +36,10 @@ class PEGrule(object):
         if self.peg is None:
             raise PEGerror('Invalid rule syntax in function ' + action.func_name)
 
+        self.symbol, self.PEGobject = self.peg()
         self.action = action
+        print self.PEGobject
+        print [type(x) for x in self.PEGobject.symbol]
 
     def __call__(self, *args, **kwargs):
         return self.action(*args, **kwargs)
@@ -50,39 +56,12 @@ class PEGrule(object):
         '''
         return self.peg.child[1].child[2]
 
+    def __str__(self):
+        return '%s <- %s' % (self.symbolName, self.definition)
 
-def reflect(peg, grammar):
-        return {
-        'Dot': lambda : Dot(),
-        'Ignore': lambda : Ignore(peg.symbol.symbol),
-        'Not': lambda : Not(peg.symbol.symbol),
-        'Plus' : lambda : Plus(peg.symbol.symbol),
-        'Range': lambda : Range(peg.symbol.a, peg.symbol.b),
-        'Sequence': lambda : Sequence(peg.symbol.symbol),
-        'Star': lambda : Star(peg.symbol.symbol),
-        'String': lambda : String(peg.yytext),
-        }[peg.name]()
-
-
-def reflection(start, grammar):
-    ''' Given an YYtext object, returns the PEG object
-    which parses it.
-    '''
-    if isinstance(grammar[start], Symbol):
-        return grammar[start]
-
-    rules = grammar[start]
-    rules_ = tuple(reflect(x.definition, grammar) for x in rules)
-    print rules_
-
-    if len(rules) > 1: # More than one definition?
-        grammar[start] = Choice(*rules_)
-    else:
-        grammar[start] = rules_[0]
-        print grammar
-
-    return grammar[start]
-    
+    def match(self, inputSequence, pos = None):
+        return self.PEGobject.match(inputSequence, pos)
+        
 
 
 class Parser(object):
@@ -103,14 +82,11 @@ class Parser(object):
         for obj in self.rules:
             symbols[obj.symbolName] = symbols.get(obj.symbolName, []) + [obj]
 
-        for rule in self.rules: 
-            print rule.definition
-            print rule.peg.name
-
-        grammar = reflection(start, symbols)
-        print grammar
-
 
     def __str__(self):
         return '\n'.join(x.rule.strip() for x in self.rules)
+
+
+    def parse(self, inputSequence):
+        pass
 
