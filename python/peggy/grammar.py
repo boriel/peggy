@@ -6,6 +6,9 @@
 
 from peg import *
 
+class Ident(String):
+    pass
+
 
 EndOfFile = ~Dot()
 EndOfLine = String('\r\n') | '\n' | '\r'
@@ -49,6 +52,10 @@ Expression.name = 'Expression'
 Expression.symbol = [Sequence_, Star(Sequence(SLASH, Sequence_))]
 Definition = Sequence(Identifier, LEFTARROW, Expression)
 Grammar = Sequence(Spacing, Definition+ EndOfFile)
+
+def Identifier_action(yytext):
+    return Ident(str(yytext))
+Identifier.action = Identifier_action
 
 
 def Sequence__action(yytext):
